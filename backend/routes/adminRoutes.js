@@ -121,5 +121,24 @@ router.post("/stores", authMiddleware, isAdmin, async (req, res) => {
   }
 });
 
+// Delete a user by ID (admin only)
+router.delete("/users/:id", authMiddleware, isAdmin, async (req, res) => {
+  try {
+    const userId = req.params.id;
+
+    const [result] = await pool.query("DELETE FROM users WHERE id = ?", [userId]);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    res.json({ message: "User deleted successfully" });
+  } catch (err) {
+    console.error("Error deleting user:", err);
+    res.status(500).json({ error: "Failed to delete user" });
+  }
+});
+
+
 
 export default router;

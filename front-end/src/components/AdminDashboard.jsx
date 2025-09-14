@@ -160,20 +160,117 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleDeleteUser = async (userId) => {
+    if (!window.confirm("Are you sure you want to delete this user?")) return;
+
+    try {
+      const res = await fetch(`http://localhost:5000/admin/users/${userId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`, // your auth token
+        },
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        alert(data.error || "Failed to delete user");
+        return;
+      }
+
+      // Remove user from state
+      setUsers((prev) => prev.filter((u) => u.id !== userId));
+    } catch (err) {
+      console.error(err);
+      alert("Something went wrong while deleting the user");
+    }
+  };
+
+
   // Add new store
+// const handleAddStore = async (e) => {
+//   e.preventDefault();
+//   setMessage("");
+
+//   //  Basic validation
+//   if (newStore.name.length < 2 || newStore.name.length > 60) {
+//     return setMessage("Store name must be between 2 and 60 characters ");
+//   }
+//   if (newStore.address.length > 400) {
+//     return setMessage("Address must be less than 400 characters ");
+//   }
+
+//   try {
+//     const res = await fetch("http://localhost:5000/admin/stores", {
+//       method: "POST",
+//       headers: {
+//         "Content-Type": "application/json",
+//         Authorization: `Bearer ${token}`,
+//       },
+//       body: JSON.stringify({
+//         name: newStore.name,
+//         owner_id: newStore.owner_id, // store owner (must exist in users table)
+//         email: newStore.email,
+//         address: newStore.address,
+//       }),
+//     });
+
+//     const data = await res.json();
+
+//     if (!res.ok) {
+//       return setMessage(data.error || "Failed to add store ");
+//     }
+
+//     setMessage(" Store added successfully!");
+//     setNewStore({ name: "", owner_id: "", email: "", address: "" });
+//   } catch (err) {
+//     console.error(err);
+//     setMessage("Something went wrong while adding the store ");
+//   }
+// };
+
 const handleAddStore = async (e) => {
   e.preventDefault();
   setMessage("");
 
-  //  Basic validation
+  // Basic validation
   if (newStore.name.length < 2 || newStore.name.length > 60) {
-    return setMessage("Store name must be between 2 and 60 characters ");
+    return setMessage("Store name must be between 2 and 60 characters");
   }
   if (newStore.address.length > 400) {
-    return setMessage("Address must be less than 400 characters ");
+    return setMessage("Address must be less than 400 characters");
+  }
+  if (!newStore.email) {
+    return setMessage("Owner email is required");
   }
 
   try {
+    // Step 1: Fetch owner ID by email
+    // Fetch owner by email
+    const ownerRes = await fetch(
+      `http://localhost:5000/admin/users?email=${encodeURIComponent(
+        newStore.email
+      )}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    const ownerData = await ownerRes.json();
+
+    // Check if the response is an array
+    const owner = Array.isArray(ownerData) ? ownerData[0] : ownerData;
+
+    if (!owner || !owner.id) {
+      return setMessage("Owner with this email not found");
+    }
+
+    const owner_id = owner.id;
+
+    // Step 2: Add the store
     const res = await fetch("http://localhost:5000/admin/stores", {
       method: "POST",
       headers: {
@@ -182,7 +279,7 @@ const handleAddStore = async (e) => {
       },
       body: JSON.stringify({
         name: newStore.name,
-        owner_id: newStore.owner_id, // store owner (must exist in users table)
+        owner_id, // automatically fetched owner ID
         email: newStore.email,
         address: newStore.address,
       }),
@@ -191,16 +288,17 @@ const handleAddStore = async (e) => {
     const data = await res.json();
 
     if (!res.ok) {
-      return setMessage(data.error || "Failed to add store ");
+      return setMessage(data.error || "Failed to add store");
     }
 
-    setMessage(" Store added successfully!");
+    setMessage("Store added successfully!");
     setNewStore({ name: "", owner_id: "", email: "", address: "" });
   } catch (err) {
     console.error(err);
-    setMessage("Something went wrong while adding the store ");
+    setMessage("Something went wrong while adding the store");
   }
 };
+
 
 
   // Filters
@@ -285,7 +383,7 @@ const handleAddStore = async (e) => {
             className="border p-2 rounded"
           >
             <option value="user">User</option>
-            <option value="store_owner">Store Owner</option>
+            <option value="OWNER">Owner</option>
             <option value="admin">Admin</option>
           </select>
           <button
@@ -297,7 +395,6 @@ const handleAddStore = async (e) => {
         </form>
       </div>
 
-      {/* Add store form */}
       {/* Add Store Form */}
       <div className="bg-white shadow rounded p-4 mt-6">
         <h3 className="text-lg font-semibold mb-3">Add New Store</h3>
@@ -375,6 +472,14 @@ const handleAddStore = async (e) => {
                 <td className="p-2 border">{u.email}</td>
                 <td className="p-2 border">{u.address}</td>
                 <td className="p-2 border">{u.role}</td>
+                <td className="p-2 border">
+                  <button
+                    className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
+                    onClick={() => handleDeleteUser(u.id)}
+                  >
+                    Delete
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
