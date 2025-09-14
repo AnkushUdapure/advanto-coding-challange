@@ -1,14 +1,36 @@
+// const mysql = require("mysql2/promise");
+
+// // Create connection pool
+// const pool = mysql.createPool({
+//   host: "localhost",
+//   user: "ankush_udapure", // your MySQL user
+//   password: "ADsql@25", // your MySQL password
+//   database: "ratings_app",
+//   waitForConnections: true,
+//   connectionLimit: 10,
+//   queueLimit: 0,
+// });
+
+// module.exports = pool;
+
+// backend/db.js
+const path = require("path");
+require("dotenv").config({ path: path.resolve(__dirname, "../.env") }); // go up one level
+
 const mysql = require("mysql2/promise");
 
-// Create connection pool
 const pool = mysql.createPool({
-  host: "localhost",
-  user: "ankush_udapure", // your MySQL user
-  password: "ADsql@25", // your MySQL password
-  database: "ratings_app",
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
   waitForConnections: true,
-  connectionLimit: 10,
+  connectionLimit: parseInt(process.env.DB_CONNECTION_LIMIT) || 10,
   queueLimit: 0,
 });
+
+console.log("DB_USER:", process.env.DB_USER);
+console.log("DB_PASSWORD:", process.env.DB_PASSWORD);
+console.log("DB_NAME:", process.env.DB_NAME);
 
 module.exports = pool;

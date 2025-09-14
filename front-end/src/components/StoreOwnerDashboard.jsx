@@ -4,28 +4,36 @@ import { useNavigate } from "react-router-dom";
 
 export default function StoreOwnerDashboard() {
   const { user, logout } = useContext(AuthContext);
-  const [ratings, setRatings] = useState([]);
+  const [stores, setStores] = useState([]);
   const [newPassword, setNewPassword] = useState("");
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
-  
   const [message, setMessage] = useState("");
   const navigate = useNavigate();
 
-  // Fetch ratings for this owner's store(s)
+  // Fetch only this owner's stores with average ratings
   useEffect(() => {
-    async function fetchRatings() {
+    async function fetchOwnerStores() {
       try {
         const token = localStorage.getItem("token");
-        const res = await fetch("http://localhost:5000/owner/ratings", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        if (!token) return;
+
+        const res = await fetch(
+          "http://localhost:5000/stores/owner/my-stores",
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+
+        if (!res.ok) throw new Error("Failed to fetch owner stores");
+
         const data = await res.json();
-        setRatings(data);
+        setStores(data);
       } catch (err) {
-        console.error("Failed to load ratings", err);
+        console.error("Failed to load owner stores:", err);
       }
     }
-    fetchRatings();
+
+    fetchOwnerStores();
   }, []);
 
   // Logout
@@ -59,20 +67,11 @@ export default function StoreOwnerDashboard() {
     }
   };
 
-  // Compute average rating per store
-  const averageRatings = ratings.reduce((acc, r) => {
-    if (!acc[r.store_id])
-      acc[r.store_id] = { total: 0, count: 0, name: r.store_name };
-    acc[r.store_id].total += r.rating;
-    acc[r.store_id].count += 1;
-    return acc;
-  }, {});
-
   return (
     <div className="min-h-screen bg-gray-100 p-6">
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold">Welcome, {user?.name}</h2>
+        <h2 className="text-2xl font-bold">Welcome, {user?.name || "Owner"}</h2>
         <div className="flex gap-2">
           <button
             onClick={() => setPasswordModalOpen(true)}
@@ -87,81 +86,68 @@ export default function StoreOwnerDashboard() {
             Logout
           </button>
         </div>
+      </div>
 
-        {passwordModalOpen && (
-          <div className="fixed inset-0 bg-black bg-opacity-20 backdrop-blur-sm flex items-center justify-center z-50">
-            <div className="bg-white p-6 rounded shadow-lg w-72">
-              <h3 className="text-lg font-semibold mb-4 text-center">
-                Change Password
-              </h3>
-              <form onSubmit={handlePasswordChange} className="space-y-3">
-                <input
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="New Password"
-                  className="w-full p-2 border rounded"
-                />
-                <div className="flex justify-end gap-2">
-                  <button
-                    type="button"
-                    className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400 transition"
-                    onClick={() => setPasswordModalOpen(false)}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
-                  >
-                    Update
-                  </button>
-                </div>
-              </form>
-              {message && (
-                <p className="mt-2 text-sm text-green-600">{message}</p>
-              )}
-            </div>
+      {/* Password modal */}
+      {passwordModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-20 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded shadow-lg w-72">
+            <h3 className="text-lg font-semibold mb-4 text-center">
+              Change Password
+            </h3>
+            <form onSubmit={handlePasswordChange} className="space-y-3">
+              <input
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="New Password"
+                className="w-full p-2 border rounded"
+              />
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400 transition"
+                  onClick={() => setPasswordModalOpen(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
+                >
+                  Update
+                </button>
+              </div>
+            </form>
+            {message && (
+              <p className="mt-2 text-sm text-green-600">{message}</p>
+            )}
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
-      {/* Ratings list */}
-      <div className="bg-white shadow rounded p-4 mb-6">
-        <h3 className="text-lg font-semibold mb-2">
-          User Ratings for Your Stores
+      {/* Store List with average ratings */}
+      <div className="bg-white/90 backdrop-blur-lg rounded-2xl shadow-lg p-6 hover:shadow-xl transition">
+        <h3 className="text-xl font-bold mb-4 text-gray-800 border-b pb-2">
+          My Stores
         </h3>
-        {ratings.length === 0 ? (
-          <p>No ratings yet.</p>
+        {stores.length === 0 ? (
+          <p className="text-gray-600">No stores found.</p>
         ) : (
-          <ul className="space-y-2">
-            {ratings.map((r) => (
-              <li key={r.id} className="p-2 border rounded">
-                <p>
-                  <strong>User:</strong> {r.user_name} ({r.user_email})
-                </p>
-                <p>
-                  <strong>Store:</strong> {r.store_name}
-                </p>
-                <p>
-                  <strong>Rating:</strong> {r.rating}
-                </p>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
-      {/* Average ratings */}
-      <div className="bg-white shadow rounded p-4 mb-6">
-        <h3 className="text-lg font-semibold mb-2">Average Ratings</h3>
-        {Object.keys(averageRatings).length === 0 ? (
-          <p>No data available</p>
-        ) : (
-          <ul>
-            {Object.values(averageRatings).map((s, i) => (
-              <li key={i} className="p-2 border rounded mb-2">
-                {s.name} → {(s.total / s.count).toFixed(2)} / 5 ⭐
+          <ul className="space-y-3">
+            {stores.map((store) => (
+              <li
+                key={store.id}
+                className="p-4 border rounded-xl flex justify-between items-center hover:bg-gray-50 transition"
+              >
+                <div>
+                  <p className="font-semibold text-gray-800">{store.name}</p>
+                  <p className="text-sm text-gray-600">{store.address}</p>
+                  <p className="text-sm text-gray-700">
+                    Avg Rating:{" "}
+                    <span className="font-medium">{store.rating || "N/A"}</span>
+                  </p>
+                </div>
               </li>
             ))}
           </ul>

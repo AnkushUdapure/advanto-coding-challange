@@ -1,11 +1,14 @@
 import React, { useContext, useEffect, useState } from "react";
 import { AuthContext } from "../contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { Trash2 } from "lucide-react";
+import { Users, Store, Star, UserPlus } from "lucide-react";
 
 export default function AdminDashboard() {
   const { logout } = useContext(AuthContext);
   const [profile, setProfile] = useState(null);
-  const [ setStores] = useState([]);
+  // const [ setStores] = useState([]);
+  const [stores, setStores] = useState([]);
   const [users, setUsers] = useState([]);
   const [stats, setStats] = useState({});
   const [search, setSearch] = useState("");
@@ -14,6 +17,9 @@ export default function AdminDashboard() {
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [message, setMessage] = useState("");
+
+  const [showUsers, setShowUsers] = useState(false);
+  const [showStores, setShowStores] = useState(false);
 
   // Add user/store form states
   const [newUser, setNewUser] = useState({
@@ -28,17 +34,14 @@ export default function AdminDashboard() {
   //   address: "",
   // });
 
-  
-
   const [newStore, setNewStore] = useState({
     name: "",
     owner_id: "",
     email: "",
     address: "",
   });
-  
-  // const [message, setMessage] = useState("");
 
+  // const [message, setMessage] = useState("");
 
   const navigate = useNavigate();
   const token = localStorage.getItem("token");
@@ -185,121 +188,100 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleDeleteStore = async (storeId) => {
+    if (!window.confirm("Are you sure you want to delete this store?")) return;
 
-  // Add new store
-// const handleAddStore = async (e) => {
-//   e.preventDefault();
-//   setMessage("");
+    try {
+      const res = await fetch(`http://localhost:5000/stores/${storeId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
-//   //  Basic validation
-//   if (newStore.name.length < 2 || newStore.name.length > 60) {
-//     return setMessage("Store name must be between 2 and 60 characters ");
-//   }
-//   if (newStore.address.length > 400) {
-//     return setMessage("Address must be less than 400 characters ");
-//   }
+      if (!res.ok) {
+        const data = await res.json();
+        alert(data.error || "Failed to delete store");
+        return;
+      }
 
-//   try {
-//     const res = await fetch("http://localhost:5000/admin/stores", {
-//       method: "POST",
-//       headers: {
-//         "Content-Type": "application/json",
-//         Authorization: `Bearer ${token}`,
-//       },
-//       body: JSON.stringify({
-//         name: newStore.name,
-//         owner_id: newStore.owner_id, // store owner (must exist in users table)
-//         email: newStore.email,
-//         address: newStore.address,
-//       }),
-//     });
+      setStores((prev) => prev.filter((s) => s.id !== storeId));
+    } catch (err) {
+      console.error("Error deleting store:", err);
+      alert("Something went wrong while deleting the store");
+    }
+  };
 
-//     const data = await res.json();
+  const handleAddStore = async (e) => {
+    e.preventDefault();
+    setMessage("");
 
-//     if (!res.ok) {
-//       return setMessage(data.error || "Failed to add store ");
-//     }
+    // Basic validation
+    if (newStore.name.length < 2 || newStore.name.length > 60) {
+      return setMessage("Store name must be between 2 and 60 characters");
+    }
+    if (newStore.address.length > 400) {
+      return setMessage("Address must be less than 400 characters");
+    }
+    if (!newStore.email) {
+      return setMessage("Owner email is required");
+    }
 
-//     setMessage(" Store added successfully!");
-//     setNewStore({ name: "", owner_id: "", email: "", address: "" });
-//   } catch (err) {
-//     console.error(err);
-//     setMessage("Something went wrong while adding the store ");
-//   }
-// };
+    try {
+      // Step 1: Fetch owner ID by email
+      // Fetch owner by email
+      const ownerRes = await fetch(
+        `http://localhost:5000/admin/users?email=${encodeURIComponent(
+          newStore.email
+        )}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
-const handleAddStore = async (e) => {
-  e.preventDefault();
-  setMessage("");
+      const ownerData = await ownerRes.json();
 
-  // Basic validation
-  if (newStore.name.length < 2 || newStore.name.length > 60) {
-    return setMessage("Store name must be between 2 and 60 characters");
-  }
-  if (newStore.address.length > 400) {
-    return setMessage("Address must be less than 400 characters");
-  }
-  if (!newStore.email) {
-    return setMessage("Owner email is required");
-  }
+      // Check if the response is an array
+      const owner = Array.isArray(ownerData) ? ownerData[0] : ownerData;
 
-  try {
-    // Step 1: Fetch owner ID by email
-    // Fetch owner by email
-    const ownerRes = await fetch(
-      `http://localhost:5000/admin/users?email=${encodeURIComponent(
-        newStore.email
-      )}`,
-      {
-        method: "GET",
+      if (!owner || !owner.id) {
+        return setMessage("Owner with this email not found");
+      }
+
+      const owner_id = owner.id;
+
+      // Step 2: Add the store
+      const res = await fetch("http://localhost:5000/admin/stores", {
+        method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
+        body: JSON.stringify({
+          name: newStore.name,
+          owner_id, // automatically fetched owner ID
+          email: newStore.email,
+          address: newStore.address,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        return setMessage(data.error || "Failed to add store");
       }
-    );
 
-    const ownerData = await ownerRes.json();
-
-    // Check if the response is an array
-    const owner = Array.isArray(ownerData) ? ownerData[0] : ownerData;
-
-    if (!owner || !owner.id) {
-      return setMessage("Owner with this email not found");
+      setMessage("Store added successfully!");
+      setNewStore({ name: "", owner_id: "", email: "", address: "" });
+    } catch (err) {
+      console.error(err);
+      setMessage("Something went wrong while adding the store");
     }
-
-    const owner_id = owner.id;
-
-    // Step 2: Add the store
-    const res = await fetch("http://localhost:5000/admin/stores", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        name: newStore.name,
-        owner_id, // automatically fetched owner ID
-        email: newStore.email,
-        address: newStore.address,
-      }),
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      return setMessage(data.error || "Failed to add store");
-    }
-
-    setMessage("Store added successfully!");
-    setNewStore({ name: "", owner_id: "", email: "", address: "" });
-  } catch (err) {
-    console.error(err);
-    setMessage("Something went wrong while adding the store");
-  }
-};
-
-
+  };
 
   // Filters
   const filteredUsers = users.filter(
@@ -332,159 +314,275 @@ const handleAddStore = async (e) => {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
-        <div className="bg-white p-4 rounded shadow">
-          Users: {stats.totalUsers}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+        {/* Users */}
+        <div className="flex items-center gap-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white p-6 rounded-2xl shadow-lg transform hover:scale-105 transition">
+          <div className="bg-white/20 p-3 rounded-full">
+            <Users size={28} />
+          </div>
+          <div>
+            <p className="text-2xl font-bold">{stats.totalUsers}</p>
+            <p className="text-sm opacity-80">Users</p>
+          </div>
         </div>
-        <div className="bg-white p-4 rounded shadow">
-          Stores: {stats.totalStores}
+
+        {/* Stores */}
+        <div className="flex items-center gap-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white p-6 rounded-2xl shadow-lg transform hover:scale-105 transition">
+          <div className="bg-white/20 p-3 rounded-full">
+            <Store size={28} />
+          </div>
+          <div>
+            <p className="text-2xl font-bold">{stats.totalStores}</p>
+            <p className="text-sm opacity-80">Stores</p>
+          </div>
         </div>
-        <div className="bg-white p-4 rounded shadow">
-          Ratings: {stats.totalRatings}
+
+        {/* Ratings */}
+        <div className="flex items-center gap-4 bg-gradient-to-r from-yellow-400 to-orange-500 text-white p-6 rounded-2xl shadow-lg transform hover:scale-105 transition">
+          <div className="bg-white/20 p-3 rounded-full">
+            <Star size={28} />
+          </div>
+          <div>
+            <p className="text-2xl font-bold">{stats.totalRatings}</p>
+            <p className="text-sm opacity-80">Ratings</p>
+          </div>
         </div>
       </div>
 
-      {/* Add user form */}
-      <div className="bg-white p-4 rounded shadow mb-6">
-        <h3 className="font-semibold mb-2">Add User</h3>
-        <form onSubmit={handleAddUser} className="grid grid-cols-2 gap-2">
-          <input
-            placeholder="Name"
-            value={newUser.name}
-            onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
-            className="border p-2 rounded"
-          />
-          <input
-            placeholder="Email"
-            value={newUser.email}
-            onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
-            className="border p-2 rounded"
-          />
-          <input
-            placeholder="Password"
-            type="password"
-            value={newUser.password}
-            onChange={(e) =>
-              setNewUser({ ...newUser, password: e.target.value })
-            }
-            className="border p-2 rounded"
-          />
-          <input
-            placeholder="Address"
-            value={newUser.address}
-            onChange={(e) =>
-              setNewUser({ ...newUser, address: e.target.value })
-            }
-            className="border p-2 rounded"
-          />
-          <select
-            value={newUser.role}
-            onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
-            className="border p-2 rounded"
-          >
-            <option value="user">User</option>
-            <option value="OWNER">Owner</option>
-            <option value="admin">Admin</option>
-          </select>
-          <button
-            type="submit"
-            className="bg-blue-500 text-white rounded px-4 py-2"
-          >
-            Add
-          </button>
-        </form>
-      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        {/* Add User */}
+        {/* Add User Card */}
+        <div className="bg-white/90 backdrop-blur-lg p-6 rounded-2xl shadow-lg hover:shadow-xl transition-shadow duration-300">
+          <h3 className="text-lg font-bold mb-4 text-gray-800 border-b pb-2">
+            Add User
+          </h3>
+          <form onSubmit={handleAddUser} className="grid grid-cols-2 gap-4">
+            <input
+              placeholder="Name"
+              value={newUser.name}
+              onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
+              className="border p-2 rounded-lg focus:ring-2 focus:ring-blue-400 focus:outline-none"
+            />
+            <input
+              placeholder="Email"
+              value={newUser.email}
+              onChange={(e) =>
+                setNewUser({ ...newUser, email: e.target.value })
+              }
+              className="border p-2 rounded-lg focus:ring-2 focus:ring-blue-400 focus:outline-none"
+            />
+            <input
+              placeholder="Password"
+              type="password"
+              value={newUser.password}
+              onChange={(e) =>
+                setNewUser({ ...newUser, password: e.target.value })
+              }
+              className="border p-2 rounded-lg focus:ring-2 focus:ring-blue-400 focus:outline-none"
+            />
+            <input
+              placeholder="Address"
+              value={newUser.address}
+              onChange={(e) =>
+                setNewUser({ ...newUser, address: e.target.value })
+              }
+              className="border p-2 rounded-lg focus:ring-2 focus:ring-blue-400 focus:outline-none"
+            />
+            <select
+              value={newUser.role}
+              onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
+              className="border p-2 rounded-lg focus:ring-2 focus:ring-blue-400 focus:outline-none col-span-2"
+            >
+              <option value="user">User</option>
+              <option value="OWNER">Owner</option>
+              <option value="admin">Admin</option>
+            </select>
 
-      {/* Add Store Form */}
-      <div className="bg-white shadow rounded p-4 mt-6">
-        <h3 className="text-lg font-semibold mb-3">Add New Store</h3>
-        <form onSubmit={handleAddStore} className="space-y-3">
-          <input
-            type="text"
-            value={newStore.name}
-            onChange={(e) => setNewStore({ ...newStore, name: e.target.value })}
-            placeholder="Store Name"
-            className="w-full p-2 border rounded"
-            required
-          />
-          <input
-            type="number"
-            value={newStore.owner_id}
-            onChange={(e) =>
-              setNewStore({ ...newStore, owner_id: Number(e.target.value) })
-            }
-            placeholder="Owner ID"
-            className="w-full p-2 border rounded"
-            required
-          />
-          <input
-            type="email"
-            value={newStore.email}
-            onChange={(e) =>
-              setNewStore({ ...newStore, email: e.target.value })
-            }
-            placeholder="Store Email"
-            className="w-full p-2 border rounded"
-            required
-          />
-          <textarea
-            value={newStore.address}
-            onChange={(e) =>
-              setNewStore({ ...newStore, address: e.target.value })
-            }
-            placeholder="Store Address"
-            className="w-full p-2 border rounded"
-            rows="3"
-            required
-          ></textarea>
-          <button
-            type="submit"
-            className="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700 transition"
-          >
+            {/* Buttons row */}
+            <div className="col-span-2 flex justify-center gap-3">
+              <button
+                type="submit"
+                className="flex items-center justify-center gap-2 bg-blue-600 text-white font-medium px-5 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <UserPlus size={20} />
+                Add User
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowUsers(!showUsers)}
+                className="flex items-center justify-center gap-2 bg-purple-600 text-white font-medium px-5 py-2 rounded-lg hover:bg-purple-700 transition-colors"
+              >
+                <Users size={20} />
+                {showUsers ? "Hide Users" : "Show Users"}
+              </button>
+            </div>
+          </form>
+        </div>
+
+        {/* Add Store */}
+        <div className="bg-white/90 backdrop-blur-lg p-6 rounded-2xl shadow-lg hover:shadow-xl transition-shadow duration-300">
+          <h3 className="text-lg font-bold mb-4 text-gray-800 border-b pb-2">
             Add Store
-          </button>
-        </form>
-        {message && <p className="mt-2 text-sm text-green-600">{message}</p>}
+          </h3>
+          <form onSubmit={handleAddStore} className="space-y-4">
+            <input
+              type="text"
+              value={newStore.name}
+              onChange={(e) =>
+                setNewStore({ ...newStore, name: e.target.value })
+              }
+              placeholder="Store Name"
+              className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-400 focus:outline-none"
+              required
+            />
+            <input
+              type="number"
+              value={newStore.owner_id}
+              onChange={(e) =>
+                setNewStore({ ...newStore, owner_id: Number(e.target.value) })
+              }
+              placeholder="Owner ID"
+              className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-400 focus:outline-none"
+              required
+            />
+            <input
+              type="email"
+              value={newStore.email}
+              onChange={(e) =>
+                setNewStore({ ...newStore, email: e.target.value })
+              }
+              placeholder="Store Email"
+              className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-400 focus:outline-none"
+              required
+            />
+            <textarea
+              value={newStore.address}
+              onChange={(e) =>
+                setNewStore({ ...newStore, address: e.target.value })
+              }
+              placeholder="Store Address"
+              className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-400 focus:outline-none"
+              rows="3"
+              required
+            ></textarea>
+            <div className="flex justify-center gap-3">
+              <button
+                type="submit"
+                className="flex items-center justify-center gap-2 bg-blue-600 text-white font-medium px-5 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <Store size={20} />
+                Add Store
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowStores(!showStores)}
+                className="flex items-center justify-center gap-2 bg-purple-600 text-white font-medium px-5 py-2 rounded-lg hover:bg-purple-700 transition-colors"
+              >
+                <Store size={20} />
+                {showStores ? "Hide Stores" : "Show Stores"}
+              </button>
+            </div>
+          </form>
+          {message && (
+            <p className="mt-3 text-sm font-medium text-green-600">{message}</p>
+          )}
+        </div>
       </div>
+      {/* Show stores*/}
+      {showStores && (
+        <div className="mt-6 bg-white/80 backdrop-blur-md p-6 rounded-2xl shadow-xl">
+          <h3 className="text-xl font-bold mb-3 text-gray-800">All Stores</h3>
+          {stores.length === 0 ? (
+            <p className="text-gray-600">No stores available.</p>
+          ) : (
+            <div className="overflow-x-auto rounded-lg">
+              <table className="w-full border-collapse">
+                <thead className="bg-gradient-to-r from-purple-500 to-pink-500 text-white sticky top-0">
+                  <tr>
+                    <th className="p-3 text-left">Name</th>
+                    <th className="p-3 text-left">Email</th>
+                    <th className="p-3 text-left">Address</th>
+                    <th className="p-3 text-left">Rating</th>
+                    <th className="p-3 text-center">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {stores.map((store) => (
+                    <tr
+                      key={store.id}
+                      className="odd:bg-gray-50 even:bg-white hover:bg-gray-100 transition"
+                    >
+                      <td className="p-3">{store.name}</td>
+                      <td className="p-3">{store.email}</td>
+                      <td className="p-3">{store.address}</td>
+                      <td className="p-3">{store.rating || "N/A"}</td>
+                      <td className="p-3 text-center">
+                        <button
+                          className="bg-red-500 text-white p-2 rounded-full hover:bg-red-600 transition transform hover:scale-110"
+                          onClick={() => handleDeleteStore(store.id)}
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
 
-      {/* User list */}
-      <div className="bg-white p-4 rounded shadow">
-        <h3 className="font-semibold mb-2">All Users</h3>
-        <input
-          placeholder="Search..."
-          className="border p-2 rounded mb-2 w-full"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-        <table className="w-full border">
-          <thead>
-            <tr className="bg-gray-200">
-              <th className="p-2 border">Name</th>
-              <th className="p-2 border">Email</th>
-              <th className="p-2 border">Address</th>
-              <th className="p-2 border">Role</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredUsers.map((u) => (
-              <tr key={u.id}>
-                <td className="p-2 border">{u.name}</td>
-                <td className="p-2 border">{u.email}</td>
-                <td className="p-2 border">{u.address}</td>
-                <td className="p-2 border">{u.role}</td>
-                <td className="p-2 border">
-                  <button
-                    className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
-                    onClick={() => handleDeleteUser(u.id)}
+      {/* Show Users Table */}
+      {showUsers && (
+        <div className="mt-6 bg-white/80 backdrop-blur-md p-6 rounded-2xl shadow-xl">
+          <h3 className="text-xl font-bold mb-3 text-gray-800">All Users</h3>
+
+          {/* Search */}
+          <input
+            placeholder="Search..."
+            className="border border-gray-300 p-2 rounded-lg mb-4 w-full focus:ring-2 focus:ring-purple-400 focus:outline-none"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+
+          {/* Table */}
+          <div className="overflow-x-auto rounded-lg">
+            <table className="w-full border-collapse">
+              <thead className="bg-gradient-to-r from-purple-500 to-pink-500 text-white sticky top-0">
+                <tr>
+                  <th className="p-3 text-left">Name</th>
+                  <th className="p-3 text-left">Email</th>
+                  <th className="p-3 text-left">Address</th>
+                  <th className="p-3 text-left">Role</th>
+                  <th className="p-3 text-center">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredUsers.map((u) => (
+                  <tr
+                    key={u.id}
+                    className="odd:bg-gray-50 even:bg-white hover:bg-gray-100 transition"
                   >
-                    Delete
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                    <td className="p-3">{u.name}</td>
+                    <td className="p-3">{u.email}</td>
+                    <td className="p-3">{u.address}</td>
+                    <td className="p-3">{u.role}</td>
+                    <td className="p-3 text-center">
+                      <button
+                        className="bg-red-500 text-white p-2 rounded-full hover:bg-red-600 transition transform hover:scale-110"
+                        onClick={() => handleDeleteUser(u.id)}
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Password change modal */}
       {passwordModalOpen && (

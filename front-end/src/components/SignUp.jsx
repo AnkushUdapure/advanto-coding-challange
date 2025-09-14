@@ -6,7 +6,7 @@ export default function Signup() {
     email: "",
     address: "",
     password: "",
-    role: "USER", // match backend ENUM (ADMIN, USER, OWNER)
+    role: "USER", 
   });
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");

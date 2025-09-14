@@ -3,10 +3,9 @@ import { AuthContext } from "../contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 
 export default function UserDashboard() {
-  const { user, logout } = useContext(AuthContext);
+  const { logout } = useContext(AuthContext);
   const [userProfile, setUserProfile] = useState(null); //added for userDetails
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
-
   const [newPassword, setNewPassword] = useState("");
   const [message, setMessage] = useState("");
   const [stores, setStores] = useState([]);
@@ -52,6 +51,7 @@ export default function UserDashboard() {
         const res = await fetch("http://localhost:5000/stores", {
           headers: { Authorization: `Bearer ${token}` },
         });
+
         const data = await res.json();
         setStores(data);
       } catch (err) {
@@ -138,57 +138,61 @@ export default function UserDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-gray-100 via-gray-50 to-gray-200 p-6">
       {/* Header */}
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold">Welcome, {user?.name}</h2>
-        <div className="flex gap-2">
+      <div className="flex justify-between items-center mb-8">
+        <h2 className="text-3xl font-extrabold text-gray-800">
+          Welcome, {userProfile?.name}
+        </h2>
+        <div className="flex gap-3">
           <button
             onClick={() => setPasswordModalOpen(true)}
-            className="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600 transition"
+            className="px-5 py-2 rounded-lg bg-yellow-500 text-white font-medium hover:bg-yellow-600 shadow-md transition transform hover:scale-105"
           >
             Change Password
           </button>
           <button
             onClick={handleLogout}
-            className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition"
+            className="px-5 py-2 rounded-lg bg-red-500 text-white font-medium hover:bg-red-600 shadow-md transition transform hover:scale-105"
           >
             Logout
           </button>
         </div>
 
         {passwordModalOpen && (
-          <div className="fixed inset-0 bg-black bg-opacity-20 backdrop-blur-sm flex items-center justify-center z-50">
-            <div className="bg-white p-6 rounded shadow-lg w-72">
-              <h3 className="text-lg font-semibold mb-4 text-center">
+          <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50">
+            <div className="bg-white/95 rounded-2xl shadow-2xl p-6 w-80 animate-fadeIn">
+              <h3 className="text-xl font-semibold mb-4 text-center text-gray-800 border-b pb-2">
                 Change Password
               </h3>
-              <form onSubmit={handlePasswordChange} className="space-y-3">
+              <form onSubmit={handlePasswordChange} className="space-y-4">
                 <input
                   type="password"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   placeholder="New Password"
-                  className="w-full p-2 border rounded"
+                  className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-400 focus:outline-none"
                 />
                 <div className="flex justify-end gap-2">
                   <button
                     type="button"
-                    className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400 transition"
+                    className="px-4 py-2 bg-gray-300 rounded-lg hover:bg-gray-400 transition"
                     onClick={() => setPasswordModalOpen(false)}
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
                   >
                     Update
                   </button>
                 </div>
               </form>
               {message && (
-                <p className="mt-2 text-sm text-green-600">{message}</p>
+                <p className="mt-3 text-sm text-green-600 text-center">
+                  {message}
+                </p>
               )}
             </div>
           </div>
@@ -197,50 +201,59 @@ export default function UserDashboard() {
 
       {/* Profile section */}
       {userProfile && (
-        <div className="bg-white shadow rounded p-4 mb-6">
-          <h3 className="text-lg font-semibold mb-2">Profile Details</h3>
-          <p>
-            <strong>Email:</strong> {userProfile.email}
-          </p>
-          <p>
-            <strong>Role:</strong> {userProfile.role}
-          </p>
-          <p>
-            <strong>Address:</strong> {userProfile.address || "N/A"}
-          </p>
+        <div className="bg-white/90 backdrop-blur-lg rounded-2xl shadow-lg p-6 mb-8 hover:shadow-xl transition">
+          <h3 className="text-xl font-bold mb-4 text-gray-800 border-b pb-2">
+            Profile Details
+          </h3>
+          <div className="grid grid-cols-2 gap-y-2 text-gray-700">
+            <p>
+              <strong>Email:</strong> {userProfile.email}
+            </p>
+            <p>
+              <strong>Role:</strong> {userProfile.role}
+            </p>
+            <p className="col-span-2">
+              <strong>Address:</strong> {userProfile.address || "N/A"}
+            </p>
+          </div>
         </div>
       )}
 
       {/* Store search */}
-      <div className="mb-4">
+      <div className="mb-6">
         <input
           type="text"
           placeholder="Search stores..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full p-2 border rounded"
+          className="w-full px-4 py-2 border rounded-lg shadow-sm focus:ring-2 focus:ring-purple-400 focus:outline-none"
         />
       </div>
 
       {/* Store list */}
-      <div className="bg-white shadow rounded p-4">
-        <h3 className="text-lg font-semibold mb-2">Stores</h3>
+      <div className="bg-white/90 backdrop-blur-lg rounded-2xl shadow-lg p-6 hover:shadow-xl transition">
+        <h3 className="text-xl font-bold mb-4 text-gray-800 border-b pb-2">
+          Stores
+        </h3>
         {filteredStores.length === 0 ? (
-          <p>No stores found.</p>
+          <p className="text-gray-600">No stores found.</p>
         ) : (
-          <ul className="space-y-2">
+          <ul className="space-y-3">
             {filteredStores.map((store) => (
               <li
                 key={store.id}
-                className="p-2 border rounded flex justify-between items-center"
+                className="p-4 border rounded-xl flex justify-between items-center hover:bg-gray-50 transition"
               >
                 <div>
-                  <p className="font-semibold">{store.name}</p>
+                  <p className="font-semibold text-gray-800">{store.name}</p>
                   <p className="text-sm text-gray-600">{store.address}</p>
-                  <p className="text-sm">Rating: {store.rating || "N/A"}</p>
+                  <p className="text-sm text-gray-700">
+                    Rating:{" "}
+                    <span className="font-medium">{store.rating || "N/A"}</span>
+                  </p>
                 </div>
                 <button
-                  className="bg-blue-500 text-white px-3 py-1 rounded"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition transform hover:scale-105 shadow-md"
                   onClick={() => openRatingModal(store.id)}
                 >
                   Rate
@@ -250,23 +263,26 @@ export default function UserDashboard() {
           </ul>
         )}
       </div>
+
       {/* Rating Modal */}
       {ratingModal.open && (
-        <div className="fixed inset-0 bg-transparent bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded shadow-lg w-72 animate-fadeIn">
-            <h3 className="text-lg font-semibold mb-4 text-center">
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white/95 rounded-2xl shadow-2xl p-6 w-80 animate-fadeIn">
+            <h3 className="text-xl font-semibold mb-4 text-center text-gray-800 border-b pb-2">
               Rate Store
             </h3>
 
             {/* Stars */}
-            <div className="flex justify-center mb-4 space-x-1">
+            <div className="flex justify-center mb-6 space-x-2">
               {[1, 2, 3, 4, 5].map((star) => (
                 <svg
                   key={star}
                   xmlns="http://www.w3.org/2000/svg"
                   viewBox="0 0 24 24"
-                  fill={star <= (hoverValue || ratingValue) ? "gold" : "gray"}
-                  className="w-8 h-8 cursor-pointer transition-transform transform hover:scale-110"
+                  fill={
+                    star <= (hoverValue || ratingValue) ? "gold" : "lightgray"
+                  }
+                  className="w-8 h-8 cursor-pointer transition-transform transform hover:scale-125"
                   onMouseEnter={() => setHoverValue(star)}
                   onMouseLeave={() => setHoverValue(0)}
                   onClick={() => setRatingValue(star)}
@@ -276,15 +292,15 @@ export default function UserDashboard() {
               ))}
             </div>
 
-            <div className="flex justify-end gap-2">
+            <div className="flex justify-end gap-3">
               <button
-                className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400 transition"
+                className="px-4 py-2 bg-gray-300 rounded-lg hover:bg-gray-400 transition"
                 onClick={() => setRatingModal({ open: false, storeId: null })}
               >
                 Cancel
               </button>
               <button
-                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition shadow-md"
                 onClick={submitRating}
               >
                 Submit

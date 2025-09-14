@@ -11,12 +11,14 @@ router.get("/", authMiddleware, async (req, res) => {
   SELECT 
       s.id, 
       s.name, 
+      s.email,
       s.address, 
       IFNULL(ROUND(AVG(r.rating), 1), 0) AS rating
   FROM stores s
   LEFT JOIN ratings r ON s.id = r.store_id
-  GROUP BY s.id, s.name, s.address
+  GROUP BY s.id, s.name, s.email, s.address
 `);
+
 
     res.json(rows);
   } catch (err) {
@@ -97,11 +99,19 @@ router.put("/:id", authMiddleware, async (req, res) => {
 // Delete store (Admin only)
 router.delete("/:id", authMiddleware, async (req, res) => {
   try {
-    if (req.user.role !== "ADMIN") {
+    // normalize role check
+    if (req.user.role.toLowerCase() !== "admin") {
       return res.status(403).json({ error: "Access denied" });
     }
 
-    await pool.query("DELETE FROM stores WHERE id = ?", [req.params.id]);
+    const [result] = await pool.query("DELETE FROM stores WHERE id = ?", [
+      req.params.id,
+    ]);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: "Store not found" });
+    }
+
     res.json({ message: "Store deleted successfully" });
   } catch (err) {
     console.error("Error deleting store:", err);
@@ -133,5 +143,32 @@ router.post("/:id/rate", authMiddleware, async (req, res) => {
     res.status(500).json({ error: "Failed to submit rating" });
   }
 });
+
+
+// Get all stores for the logged-in owner
+router.get("/owner/my-stores", authMiddleware, async (req, res) => {
+  try {
+    // authMiddleware should decode JWT and attach user info
+    const ownerEmail = req.user.email;
+
+    const [rows] = await pool.query(
+      `
+      SELECT s.id, s.name, s.address, s.owner_email,
+             COALESCE(ROUND(AVG(r.stars), 1), 0) AS rating
+      FROM stores s
+      LEFT JOIN ratings r ON s.id = r.store_id
+      WHERE s.owner_email = ?
+      GROUP BY s.id
+    `,
+      [ownerEmail]
+    );
+
+    res.json(rows);
+  } catch (err) {
+    console.error("Error fetching owner stores:", err);
+    res.status(500).json({ error: "Failed to fetch stores" });
+  }
+});
+
 
 module.exports = router;
