@@ -3,10 +3,21 @@ import { AuthContext } from "./AuthContext";
 
 const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  // user = { name, email, address, role, storeId }
+
+  // Login: store user + token
+  const login = (userData, token) => {
+    setUser(userData);
+    localStorage.setItem("token", token); // or sessionStorage
+  };
+
+  // Logout: clear user + token
+  const logout = () => {
+    setUser(null);
+    localStorage.removeItem("token"); // clear JWT
+  };
 
   return (
-    <AuthContext.Provider value={{ user, setUser }}>
+    <AuthContext.Provider value={{ user, setUser, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

@@ -64,6 +64,23 @@ router.post("/login", async (req, res) => {
   }
 });
 
+// Logout route
+router.post("/logout", async (req, res) => {
+  try {
+    const token = req.headers["authorization"]?.split(" ")[1];
+    if (!token) return res.status(400).json({ error: "No token provided" });
+
+    // Insert into revoked tokens (blacklist)
+    await pool.query("INSERT INTO revoked_tokens (token) VALUES (?)", [token]);
+
+    res.json({ message: "Logout successful" });
+  } catch (err) {
+    console.error("Logout error:", err);
+    res.status(500).json({ error: "Logout failed" });
+  }
+});
+
+
 const authMiddleware = require("../middleware/auth");
 
 // Example protected route
@@ -74,5 +91,29 @@ router.get("/me", authMiddleware, async (req, res) => {
   );
   res.json(rows[0]);
 });
+
+// Change password (protected route)
+router.post("/change-password", async (req, res) => {
+  try {
+    const { password } = req.body;
+    const authHeader = req.headers["authorization"];
+    if (!authHeader) return res.status(403).json({ error: "No token provided" });
+
+    const token = authHeader.split(" ")[1];
+    const decoded = jwt.verify(token, JWT_SECRET);
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    await pool.query("UPDATE users SET password = ? WHERE id = ?", [
+      hashedPassword,
+      decoded.id,
+    ]);
+
+    res.json({ message: "Password updated successfully" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Password update failed" });
+  }
+});
+
 
 module.exports = router;
